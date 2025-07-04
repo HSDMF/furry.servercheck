@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Furui.site Minecraft 服务器状态</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background-color: #161b22;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            border: 1px solid #30363d;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #30363d;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            color: #58a6ff;
+            margin-bottom: 5px;
+        }
+        
+        .server-address {
+            font-size: 1.2rem;
+            color: #8b949e;
+            font-weight: 500;
+            background: rgba(88, 166, 255, 0.1);
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: inline-block;
+        }
+        
+        .status-container {
+            background-color: #0d1117;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #21262d;
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status-label {
+            font-weight: 500;
+            color: #8b949e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-value {
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+        
+        .online {
+            color: #3fb950;
+        }
+        
+        .offline {
+            color: #f85149;
+        }
+        
+        .version {
+            color: #a371f7;
+        }
+        
+        .players {
+            color: #d29922;
+        }
+        
+        .refresh-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #238636;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .refresh-btn:hover {
+            background-color: #2ea043;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px 0;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 15px;
+            border: 4px solid rgba(88, 166, 255, 0.2);
+            border-top-color: #58a6ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background-color: rgba(248, 81, 73, 0.15);
+            color: #f85149;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            margin-top: 15px;
+            border: 1px solid rgba(248, 81, 73, 0.3);
+        }
+        
+        .response-time {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #8b949e;
+            margin-top: 10px;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            color: #8b949e;
+            font-size: 0.9rem;
+            border-top: 1px solid #30363d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Minecraft 服务器状态</h1>
+            <div class="server-address">furui.site</div>
+        </header>
+        
+        <div id="statusContainer">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p>正在检测服务器状态...</p>
+            </div>
+        </div>
+        
+        <button id="refreshBtn" class="refresh-btn">刷新状态</button>
+        <div class="response-time" id="responseTime"></div>
+        
+        <footer>
+            使用 mcstatus.io API | Java版服务器检测
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusContainer = document.getElementById('statusContainer');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const responseTime = document.getElementById('responseTime');
+            const serverAddress = 'furui.site'; // 指定的服务器地址
+            
+            // 初始状态检测
+            checkServerStatus();
+            
+            // 刷新按钮事件
+            refreshBtn.addEventListener('click', function() {
+                checkServerStatus();
+            });
+            
+            function checkServerStatus() {
+                // 显示加载状态
+                statusContainer.innerHTML = `
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>正在检测服务器状态...</p>
+                    </div>
+                `;
+                responseTime.textContent = '';
+                
+                // 记录开始时间
+                const startTime = Date.now();
+                
+                // 使用mcstatus.io API检测服务器状态
+                fetch(`https://api.mcstatus.io/v2/status/java/${serverAddress}`)
+                    .then(response => {
+                        // 计算响应时间
+                        const endTime = Date.now();
+                        const duration = endTime - startTime;
+                        responseTime.textContent = `API响应时间: ${duration}ms`;
+                        
+                        if (!response.ok) {
+                            throw new Error(`API请求失败 (状态码 ${response.status})`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        displayServerStatus(data);
+                    })
+                    .catch(error => {
+                        showError(`检测失败: ${error.message}`);
+                    });
+            }
+            
+            function displayServerStatus(data) {
+                // 检查服务器状态
+                if (data.online === false) {
+                    statusContainer.innerHTML = `
+                        <div class="status-container">
+                            <div class="status-item">
+                                <div class="status-label">服务器状态</div>
+                                <div class="status-value offline">离线</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-label">错误信息</div>
+                                <div class="status-value">无法连接到服务器</div>
+                            </div>
+                        </div>
+                        <div class="error">服务器未响应或无法连接</div>
+                    `;
+                    return;
+                }
+                
+                // 解析在线状态
+                const onlinePlayers = data.players.online;
+                const maxPlayers = data.players.max;
+                const version = data.version.name_clean;
+                
+                statusContainer.innerHTML = `
+                    <div class="status-container">
+                        <div class="status-item">
+                            <div class="status-label">服务器状态</div>
+                            <div class="status-value online">在线</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">在线玩家</div>
+                            <div class="status-value players">${onlinePlayers}/${maxPlayers}</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Minecraft 版本</div>
+                            <div class="status-value version">${version}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            function showError(message) {
+                statusContainer.innerHTML = `
+                    <div class="error">${message}</div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
